@@ -1,24 +1,21 @@
-use std::env;
-use std::io::{self, Read, Write};
+use pipeviewer::{args::Args, read, stats, write};
+use std::io::Result;
 
-const CHUNK_SIZE: usize = 16 * 1024;
-
-fn main() {
-    let silent = !env::var("PV_SILENT").unwrap_or_default().is_empty();
-    dbg!(silent);
+fn main() -> Result<()> {
+    // dbg!(infile, outfile, silent);
+    let args = Args::parse();
     let mut total_bytes = 0;
     loop {
-        let mut buffer = [0; CHUNK_SIZE];
-        let num_read = match io::stdin().read(&mut buffer) {
-            Ok(0) => break,
+        let buffer = match read::read(&args.infile) {
+            Ok(x) if x.is_empty() => break,
             Ok(x) => x,
             Err(_) => break,
         };
-        // total_bytes += num_read;
-        dbg!(total_bytes += num_read);
-        io::stdout().write_all(&buffer[..num_read]).unwrap();
+        stats::stats(args.silent, buffer.len(), &mut total_bytes, false);
+        if !write::write(&args.outfile, &buffer)? {
+            break;
+        }
     }
-    if !silent {
-        eprintln!("{}", total_bytes);
-    }
+    stats::stats(args.silent, 0, &mut total_bytes, true);
+    Ok(())
 }
